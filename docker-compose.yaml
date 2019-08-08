@@ -1,0 +1,48 @@
+version: '3.1'
+
+services:
+
+  producer:
+    image: registry.gitlab.com/soerenschneider/k-fail-b
+    restart: always
+    environment:
+      KFAILB_REDIS: redis
+    networks:
+      - kfailb
+
+  consumer:
+    image: registry.gitlab.com/soerenschneider/k-fail-backend
+    restart: always
+    environment:
+      K_FAIL_B_REDIS: redis
+    ports:
+      - 8000:5000
+    networks:
+      - kfailb
+
+  analyzer:
+    image: registry.gitlab.com/soerenschneider/k-fail-banal
+    restart: always
+    environment:
+      KFAILBANAL_REDIS: redis
+      KFAILBANAL_MONGO: mongo
+    networks:
+      - kfailb
+
+  redis:
+    image: redis
+    restart: always
+    networks:
+      - kfailb
+
+  mongo:
+    image: mongo
+    restart: always
+    ports:
+      - "127.0.0.1:27017:27017"
+    networks:
+      - kfailb
+
+networks:
+  kfailb:
+    driver: bridge
