@@ -42,10 +42,13 @@ class KFailB:
                           max_time=3600)
     def read_stream(self, last_id='$'):
         streams = {self._stream_name: last_id}
-        incidents = self._client.xread(streams, count=25, block=0)
+        incidents = self._client.xread(streams, count=100, block=0)
+        last_seen_id = None
+
         for incident in incidents:
             payload = incident[1][0]
             msg_id = payload[0]
+            last_seen_id = msg_id
             try:
                 line = payload[1]["line"]
                 problem = payload[1]["problem"]
@@ -59,15 +62,15 @@ class KFailB:
             except KeyError:
                 logging.error("Missing 'line' and/or 'problem' in msg: %s", payload)
                 self._prom_consumed_messages_err.inc()
-
-            streams = {self._stream_name: incident[1][0][0]}
+        return last_seen_id
 
     def start(self):
         cont = True
         logging.info("Waiting for messages on stream")
         try:
+            msg_id = "$"
             while cont:
-                self.read_stream()
+                msg_id = self.read_stream(msg_id)
         except KeyboardInterrupt:
             cont = False
 
@@ -79,7 +82,7 @@ def parse_args():
     """
     parser = configargparse.ArgumentParser(prog='k-fail-b')
     parser.add_argument('-d', '--debug', action="store_true", env_var="KFAILB_DEBUG",
-                        default=True)
+                        default=False)
     parser.add_argument('--prometheus-port', type=int, dest="prometheus_port",
                         action="store", env_var="KFAILB_PROMPORT", default=8080)
     parser.add_argument('-p', '--redis-port', type=int, dest="redis_port",
